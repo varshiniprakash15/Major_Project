@@ -112,21 +112,56 @@ router.post('/laborer', async (req, res) => {
     try {
         const { name, aadharNumber, pin, skills, preferredWage, preferredWork, preferredLocation, availability, contactInfo } = req.body;
 
+        // Parse skills if it's a comma-separated string
+        const primarySkills = typeof skills === 'string' ? skills.split(',').map(s => s.trim()) : (Array.isArray(skills) ? skills : []);
+        
+        // Parse location to get district/state (assuming format: "City, State")
+        const locationParts = preferredLocation ? preferredLocation.split(',').map(s => s.trim()) : ['Unknown', 'Unknown'];
+        const district = locationParts[0] || 'Unknown';
+        const state = locationParts[1] || 'Unknown';
+
+        // Map availability values to valid enum values
+        let availabilityStatus = 'available';
+        if (availability) {
+            const lowerAvailability = availability.toLowerCase();
+            if (lowerAvailability.includes('busy') || lowerAvailability.includes('seasonal')) {
+                availabilityStatus = 'busy';
+            } else if (lowerAvailability.includes('unavailable') || lowerAvailability.includes('no')) {
+                availabilityStatus = 'unavailable';
+            } else {
+                availabilityStatus = 'available'; // always, full-time, yes, etc.
+            }
+        }
+
         const laborer = new Laborer({
+            userId: null, // Will be set when user logs in with proper authentication
             name,
+            mobileNumber: contactInfo || '0000000000',
             aadharNumber,
-            pin,
-            skills,
-            preferredWage,
-            preferredWork,
-            preferredLocation,
-            availability,
-            contactInfo
+            location: {
+                address: preferredLocation || 'Not specified',
+                pincode: pin || '000000',
+                state: state,
+                district: district
+            },
+            skills: {
+                primarySkills: primarySkills.length > 0 ? primarySkills : ['general'],
+                experience: 0
+            },
+            workDetails: {
+                dailyWage: parseInt(preferredWage) || 500,
+                preferredWorkTypes: preferredWork ? [preferredWork] : ['other'],
+                availability: availabilityStatus
+            },
+            contactInfo: {
+                alternateMobile: contactInfo
+            }
         });
 
         await laborer.save();
         res.status(201).json({ message: 'Laborer registered successfully' });
     } catch (error) {
+        console.error('Error registering laborer:', error);
         res.status(500).json({ message: 'Error registering Laborer', error: error.message });
     }
 });

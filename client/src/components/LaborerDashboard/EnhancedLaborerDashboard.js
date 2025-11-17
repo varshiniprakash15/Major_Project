@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
     Menu, ArrowLeft, Users, Star, MapPin, Clock, Settings, LogOut, CheckCircle, XCircle, AlertCircle,
-    Edit, Bell, DollarSign, Briefcase, MessageCircle, TrendingUp, Save
+    Edit, Bell, DollarSign, Briefcase, MessageCircle, TrendingUp, Save, Wrench, Plus, Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -23,12 +23,20 @@ const EnhancedLaborerDashboard = ({ onBackClick, currentUser, onLogout }) => {
         totalJobs: 127,
         completedJobs: 120,
         pendingJobs: 3,
-        cancelledJobs: 4
+        cancelledJobs: 4,
+        isActive: true,
+        isDeleted: false
     });
     const [bookings, setBookings] = useState([]);
     const [notifications, setNotifications] = useState([]);
     const [messages, setMessages] = useState([]);
     const [loadingStates, setLoadingStates] = useState({});
+    const [showAddService, setShowAddService] = useState(false);
+    const [newService, setNewService] = useState({
+        workType: '',
+        dailyWage: 500,
+        skills: []
+    });
 
     // Fetch bookings from database
     const fetchBookings = async () => {
@@ -87,15 +95,210 @@ const EnhancedLaborerDashboard = ({ onBackClick, currentUser, onLogout }) => {
         }
     };
 
+    const fetchLaborerProfile = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch('http://localhost:6002/api/my-laborer-profile', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                const l = data.laborer;
+                setProfileData(prev => ({
+                    ...prev,
+                    name: l.name || prev.name,
+                    dailyWage: l.workDetails?.dailyWage ?? prev.dailyWage,
+                    availability: l.workDetails?.availability || prev.availability,
+                    skills: l.skills?.primarySkills?.length ? l.skills.primarySkills : prev.skills,
+                    location: `${l.location?.district || ''}, ${l.location?.state || ''}`.trim(),
+                    isActive: l.isActive,
+                    isDeleted: l.isDeleted
+                }));
+            }
+        } catch (e) {
+            console.error('Error fetching laborer profile', e);
+        }
+    };
+
     useEffect(() => {
+        fetchLaborerProfile();
         fetchBookings();
         fetchNotifications();
         fetchMessages();
     }, []);
 
-    const handleUpdateProfile = () => {
-        setIsEditing(false);
-        toast.success('Profile updated successfully!');
+    const handleUpdateProfile = async () => {
+        if (!profileData.name || profileData.name.trim() === '') {
+            toast.error('Please enter your name');
+            return;
+        }
+        
+        if (!profileData.dailyWage || profileData.dailyWage <= 0) {
+            toast.error('Please enter a valid daily wage');
+            return;
+        }
+        
+        if (!profileData.workRadius || profileData.workRadius <= 0) {
+            toast.error('Please enter a valid work radius');
+            return;
+        }
+        
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                toast.error('Please login to update profile');
+                return;
+            }
+            
+            const body = {
+                workType: (profileData.skills && profileData.skills.length > 0 && profileData.skills[0]) || 'harvesting',
+                dailyWage: profileData.dailyWage,
+                mobileNumber: currentUser?.mobileNumber,
+                availability: profileData.availability || 'available',
+                skills: Array.isArray(profileData.skills) ? profileData.skills : []
+            };
+            
+            const res = await fetch('http://localhost:6002/api/laborer', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(body)
+            });
+            
+            if (res.ok) {
+                toast.success('Profile updated successfully!');
+                const data = await res.json();
+                setProfileData(prev => ({ 
+                    ...prev, 
+                    isActive: data.laborer?.isActive ?? prev.isActive,
+                    dailyWage: data.laborer?.workDetails?.dailyWage ?? prev.dailyWage,
+                    skills: data.laborer?.skills?.primarySkills ?? prev.skills
+                }));
+                setIsEditing(false);
+            } else {
+                const err = await res.json().catch(() => ({ message: 'Failed to update profile' }));
+                toast.error(err.message || 'Failed to update profile');
+            }
+        } catch (e) {
+            console.error('Update profile error', e);
+            toast.error('Failed to update profile. Please try again.');
+        }
+    };
+
+    const handleToggleActive = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                toast.error('Please login to change profile status');
+                return;
+            }
+            
+            const res = await fetch('http://localhost:6002/api/laborer/status', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ isActive: !profileData.isActive })
+            });
+            
+            if (res.ok) {
+                const newStatus = !profileData.isActive;
+                setProfileData(prev => ({ ...prev, isActive: newStatus }));
+                toast.success(newStatus ? 'Profile reactivated successfully' : 'Profile deactivated successfully');
+            } else {
+                const errorData = await res.json().catch(() => ({ message: 'Failed to update status' }));
+                toast.error(errorData.message || 'Failed to update profile status');
+            }
+        } catch (e) {
+            console.error('Toggle active error', e);
+            toast.error('Failed to update profile status. Please try again.');
+        }
+    };
+
+    const handleDeleteProfile = async () => {
+        if (!window.confirm('Are you sure you want to delete your profile? This action cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                toast.error('Please login to delete profile');
+                return;
+            }
+            
+            const res = await fetch('http://localhost:6002/api/laborer', {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (res.ok) {
+                setProfileData(prev => ({ ...prev, isDeleted: true, isActive: false }));
+                toast.success('Profile deleted successfully');
+            } else {
+                const errorData = await res.json().catch(() => ({ message: 'Failed to delete profile' }));
+                toast.error(errorData.message || 'Failed to delete profile');
+            }
+        } catch (e) {
+            console.error('Delete profile error', e);
+            toast.error('Failed to delete profile. Please try again.');
+        }
+    };
+
+    const handleAddService = async () => {
+        if (!newService.workType) {
+            toast.error('Please select a work type');
+            return;
+        }
+        
+        if (!newService.dailyWage || newService.dailyWage <= 0) {
+            toast.error('Please enter a valid daily wage');
+            return;
+        }
+        
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                toast.error('Please login to update service');
+                return;
+            }
+            
+            const res = await fetch('http://localhost:6002/api/laborer', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    workType: newService.workType,
+                    dailyWage: newService.dailyWage,
+                    mobileNumber: currentUser?.mobileNumber,
+                    availability: 'available',
+                    skills: newService.skills.length > 0 ? newService.skills : profileData.skills
+                })
+            });
+            
+            if (res.ok) {
+                const data = await res.json();
+                setProfileData(prev => ({
+                    ...prev,
+                    dailyWage: data.laborer.workDetails?.dailyWage || newService.dailyWage,
+                    skills: data.laborer.skills?.primarySkills || newService.skills || prev.skills
+                }));
+                setNewService({ workType: '', dailyWage: 500, skills: [] });
+                setShowAddService(false);
+                toast.success('Service updated successfully!');
+            } else {
+                const err = await res.json().catch(() => ({ message: 'Failed to update service' }));
+                toast.error(err.message || 'Failed to update service');
+            }
+        } catch (e) {
+            console.error('Add service error', e);
+            toast.error('Failed to update service. Please try again.');
+        }
     };
 
     const handleAcceptBooking = async (bookingId) => {
@@ -180,13 +383,38 @@ const EnhancedLaborerDashboard = ({ onBackClick, currentUser, onLogout }) => {
         }
     };
 
-    const handleCompleteJob = (bookingId) => {
-        setBookings(bookings.map(booking => 
-            booking.id === bookingId 
-                ? { ...booking, status: 'completed' }
-                : booking
-        ));
-        toast.success('Job marked as completed!');
+    const handleCompleteJob = async (bookingId) => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                toast.error('Please login to complete jobs');
+                return;
+            }
+
+            const response = await fetch(`http://localhost:6002/api/update-booking/${bookingId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ status: 'completed' })
+            });
+
+            if (response.ok) {
+                setBookings(bookings.map(booking => 
+                    (booking._id || booking.id) === bookingId 
+                        ? { ...booking, status: 'completed' }
+                        : booking
+                ));
+                toast.success('Job marked as completed!');
+            } else {
+                const errorData = await response.json();
+                toast.error(`Failed to complete job: ${errorData.message || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Error completing job:', error);
+            toast.error('Failed to complete job. Please try again.');
+        }
     };
 
     const getStatusColor = (status) => {
@@ -214,6 +442,7 @@ const EnhancedLaborerDashboard = ({ onBackClick, currentUser, onLogout }) => {
     const menuItems = [
         { icon: <Users className="w-5 h-5 mr-3" />, text: "Dashboard", page: 'dashboard' },
         { icon: <Briefcase className="w-5 h-5 mr-3" />, text: "My Jobs", page: 'jobs' },
+        { icon: <Wrench className="w-5 h-5 mr-3" />, text: "My Services", page: 'services' },
         { icon: <Bell className="w-5 h-5 mr-3" />, text: "Notifications", page: 'notifications' },
         { icon: <TrendingUp className="w-5 h-5 mr-3" />, text: "Analytics", page: 'analytics' },
         { icon: <MessageCircle className="w-5 h-5 mr-3" />, text: "Messages", page: 'messages' },
@@ -235,13 +464,27 @@ const EnhancedLaborerDashboard = ({ onBackClick, currentUser, onLogout }) => {
                             <span className="text-gray-500 ml-2">({profileData.totalJobs} jobs)</span>
                         </div>
                     </div>
-                    <button
-                        onClick={() => setIsEditing(!isEditing)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-                    >
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit Profile
-                    </button>
+                    <div className="flex space-x-2">
+                        <button
+                            onClick={handleToggleActive}
+                            className={`px-4 py-2 rounded-lg text-white transition-colors ${profileData.isActive ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+                        >
+                            {profileData.isActive ? 'Deactivate' : 'Reactivate'}
+                        </button>
+                        <button
+                            onClick={() => setIsEditing(!isEditing)}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                        >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit Profile
+                        </button>
+                        <button
+                            onClick={handleDeleteProfile}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                        >
+                            Delete
+                        </button>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -322,6 +565,136 @@ const EnhancedLaborerDashboard = ({ onBackClick, currentUser, onLogout }) => {
         </div>
     );
 
+    const renderServices = () => (
+        <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-lg p-6">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-semibold">My Services</h3>
+                    <button
+                        onClick={() => setShowAddService(true)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                    >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Update Service
+                    </button>
+                </div>
+
+                {showAddService && (
+                    <div className="border border-gray-200 rounded-lg p-6 mb-6 bg-gray-50">
+                        <h4 className="text-lg font-semibold mb-4">Update Service Details</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Work Type *</label>
+                                <select
+                                    value={newService.workType}
+                                    onChange={(e) => setNewService({...newService, workType: e.target.value})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">Select Work Type</option>
+                                    <option value="harvesting">Harvesting</option>
+                                    <option value="plowing">Plowing</option>
+                                    <option value="irrigation">Irrigation</option>
+                                    <option value="seeding">Seeding</option>
+                                    <option value="fertilizing">Fertilizing</option>
+                                    <option value="planting">Planting</option>
+                                    <option value="weeding">Weeding</option>
+                                    <option value="pruning">Pruning</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Daily Wage (₹) *</label>
+                                <input
+                                    type="number"
+                                    value={newService.dailyWage}
+                                    onChange={(e) => setNewService({...newService, dailyWage: parseInt(e.target.value) || 0})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="Enter daily wage"
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Skills (comma-separated)</label>
+                                <input
+                                    type="text"
+                                    value={newService.skills.join(', ')}
+                                    onChange={(e) => setNewService({...newService, skills: e.target.value.split(',').map(s => s.trim()).filter(s => s)})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="e.g., Harvesting, Plowing, Irrigation"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex space-x-2 mt-4">
+                            <button
+                                onClick={handleAddService}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                                Update Service
+                            </button>
+                            <button
+                                onClick={() => setShowAddService(false)}
+                                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                <div className="space-y-4">
+                    <div className="border border-gray-200 rounded-lg p-6">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <h4 className="text-lg font-semibold text-gray-900">{profileData.name}</h4>
+                                <p className="text-gray-600">Agricultural Laborer</p>
+                                <p className="text-sm text-gray-500">
+                                    Status: {profileData.isActive ? 'Active' : 'Inactive'}
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                    profileData.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                }`}>
+                                    {profileData.isActive ? 'Available' : 'Unavailable'}
+                                </span>
+                                <p className="text-lg font-semibold text-gray-900 mt-1">₹{profileData.dailyWage}/day</p>
+                            </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+                            <div>
+                                <p className="text-sm text-gray-600">Skills</p>
+                                <p className="font-semibold">
+                                    {Array.isArray(profileData.skills) ? profileData.skills.join(', ') : 'General Labor'}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-600">Experience</p>
+                                <p className="font-semibold">{profileData.experience} years</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-600">Work Radius</p>
+                                <p className="font-semibold">{profileData.workRadius}km</p>
+                            </div>
+                        </div>
+
+                        <div className="flex space-x-2">
+                            <button
+                                onClick={handleToggleActive}
+                                className={`px-4 py-2 rounded-lg transition-colors ${
+                                    profileData.isActive 
+                                        ? 'bg-red-600 text-white hover:bg-red-700' 
+                                        : 'bg-green-600 text-white hover:bg-green-700'
+                                }`}
+                            >
+                                {profileData.isActive ? 'Deactivate' : 'Reactivate'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
     const renderJobs = () => (
         <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-lg p-6">
@@ -386,7 +759,10 @@ const EnhancedLaborerDashboard = ({ onBackClick, currentUser, onLogout }) => {
                             {booking.status === 'pending' && (
                                 <div className="flex space-x-2">
                                     <button
-                                        onClick={() => handleAcceptBooking(booking._id || booking.id)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleAcceptBooking(booking._id || booking.id);
+                                        }}
                                         disabled={loadingStates[`accept_${booking._id || booking.id}`] || loadingStates[`reject_${booking._id || booking.id}`]}
                                         className={`px-4 py-2 rounded-lg transition-colors flex items-center ${
                                             loadingStates[`accept_${booking._id || booking.id}`] || loadingStates[`reject_${booking._id || booking.id}`]
@@ -407,7 +783,10 @@ const EnhancedLaborerDashboard = ({ onBackClick, currentUser, onLogout }) => {
                                         )}
                                     </button>
                                     <button
-                                        onClick={() => handleRejectBooking(booking._id || booking.id)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRejectBooking(booking._id || booking.id);
+                                        }}
                                         disabled={loadingStates[`accept_${booking._id || booking.id}`] || loadingStates[`reject_${booking._id || booking.id}`]}
                                         className={`px-4 py-2 rounded-lg transition-colors flex items-center ${
                                             loadingStates[`accept_${booking._id || booking.id}`] || loadingStates[`reject_${booking._id || booking.id}`]
@@ -432,7 +811,10 @@ const EnhancedLaborerDashboard = ({ onBackClick, currentUser, onLogout }) => {
 
                             {booking.status === 'accepted' && (
                                 <button
-                                    onClick={() => handleCompleteJob(booking.id)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCompleteJob(booking._id || booking.id);
+                                    }}
                                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
                                 >
                                     <CheckCircle className="w-4 h-4 mr-2" />
@@ -682,6 +1064,7 @@ const EnhancedLaborerDashboard = ({ onBackClick, currentUser, onLogout }) => {
                             >
                                 {currentPage === 'dashboard' && renderDashboard()}
                                 {currentPage === 'jobs' && renderJobs()}
+                                {currentPage === 'services' && renderServices()}
                                 {currentPage === 'notifications' && renderNotifications()}
                                 {currentPage === 'analytics' && renderAnalytics()}
                                 {currentPage === 'messages' && renderMessages()}

@@ -12,6 +12,9 @@ const roleRoutes = require('./routes/roleRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 const ragRoutes = require('./routes/ragRoutes');
 const messagingRoutes = require('./routes/messagingRoutes');
+const laborerRoutes = require('./routes/laborerRoutes');
+const serviceRoutes = require('./routes/serviceRoutes');
+const aiMatchmakingRoutes = require('./routes/aiMatchmaking');
 
 const port = process.env.PORT || 6002;
 
@@ -26,6 +29,9 @@ app.use('/api', roleRoutes);
 app.use('/api', bookingRoutes);
 app.use('/api', ragRoutes);
 app.use('/api', messagingRoutes);
+app.use('/api', laborerRoutes);
+app.use('/api', serviceRoutes);
+app.use('/api', aiMatchmakingRoutes);
 
 
 app.use((err, req, res, next) => {

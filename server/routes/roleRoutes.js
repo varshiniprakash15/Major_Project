@@ -218,9 +218,71 @@ router.get('/profile-status', authenticateToken, async (req, res) => {
 // Get all laborers
 router.get('/labourers', authenticateToken, async (req, res) => {
     try {
-        const laborers = await Laborer.find({ isActive: true })
+        const { 
+            location, 
+            minWage, 
+            maxWage, 
+            skills, 
+            search,
+            sortBy = 'createdAt',
+            sortOrder = 'desc',
+            limit = 50,
+            page = 1
+        } = req.query;
+
+        // Build filter query
+        let filter = { 
+            isActive: true, 
+            isDeleted: false 
+        };
+
+        // Wage range filtering
+        if (minWage || maxWage) {
+            filter['workDetails.dailyWage'] = {};
+            if (minWage) filter['workDetails.dailyWage'].$gte = parseInt(minWage);
+            if (maxWage) filter['workDetails.dailyWage'].$lte = parseInt(maxWage);
+        }
+
+        // Skills filtering
+        if (skills) {
+            const skillArray = skills.split(',').map(s => s.trim());
+            filter['skills.primarySkills'] = { $in: skillArray };
+        }
+
+        // Search by name or skills
+        if (search) {
+            filter.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { 'skills.primarySkills': { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        // Location filtering
+        if (location) {
+            filter.$or = [
+                { 'location.district': { $regex: location, $options: 'i' } },
+                { 'location.state': { $regex: location, $options: 'i' } },
+                { 'location.address': { $regex: location, $options: 'i' } }
+            ];
+        }
+
+        // Calculate pagination
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+
+        // Build sort object
+        const sort = {};
+        sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+        // Execute query with pagination
+        const laborers = await Laborer.find(filter)
             .populate('userId', 'name mobileNumber')
-            .select('userId location skills workDetails contactInfo');
+            .select('userId location skills workDetails contactInfo')
+            .sort(sort)
+            .skip(skip)
+            .limit(parseInt(limit));
+
+        // Get total count for pagination
+        const totalCount = await Laborer.countDocuments(filter);
 
         // Transform data for frontend
         const transformedLaborers = laborers.map(laborer => ({
@@ -232,38 +294,41 @@ router.get('/labourers', authenticateToken, async (req, res) => {
             date: 'Available Now',
             location: laborer.location.district + ', ' + laborer.location.state,
             experience: laborer.skills.experience,
-            rating: 4.5 // Default rating
+            rating: 4.5, // Default rating
+            availability: laborer.workDetails.availability,
+            workRadius: laborer.workDetails.workRadius
         }));
 
-        res.status(200).json(transformedLaborers);
+        res.status(200).json({
+            laborers: transformedLaborers,
+            pagination: {
+                currentPage: parseInt(page),
+                totalPages: Math.ceil(totalCount / parseInt(limit)),
+                totalCount,
+                hasNext: skip + laborers.length < totalCount,
+                hasPrev: parseInt(page) > 1
+            }
+        });
     } catch (error) {
         console.error('Error fetching laborers:', error);
         res.status(500).json({ message: 'Error fetching laborers', error: error.message });
     }
 });
 
-// Get all service providers
+// Get all service providers (deprecated - use /api/services from serviceRoutes instead)
 router.get('/services', authenticateToken, async (req, res) => {
     try {
-        const serviceProviders = await ServiceProvider.find({ isActive: true })
-            .populate('userId', 'name mobileNumber')
-            .select('userId location services contactInfo');
+        const Service = require('../models/Services');
+        
+        // Get only active and non-deleted services
+        const services = await Service.find({ 
+            isActive: true, 
+            isDeleted: false 
+        })
+        .populate('providerId', 'name mobileNumber')
+        .sort({ createdAt: -1 });
 
-        // Transform data for frontend
-        const transformedServices = serviceProviders.flatMap(provider => 
-            provider.services.map(service => ({
-                id: service._id || Math.random().toString(36).substr(2, 9),
-                name: service.serviceName,
-                mobileNumber: provider.mobileNumber,
-                amount: service.basePrice,
-                type: service.serviceType,
-                description: service.description,
-                location: provider.location.district + ', ' + provider.location.state,
-                rating: 4.8 // Default rating
-            }))
-        );
-
-        res.status(200).json(transformedServices);
+        res.status(200).json(services);
     } catch (error) {
         console.error('Error fetching services:', error);
         res.status(500).json({ message: 'Error fetching services', error: error.message });

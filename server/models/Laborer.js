@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const laborerSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
     name: { type: String, required: true },
     mobileNumber: { type: String, required: true },
     aadharNumber: { type: String, required: true },
@@ -46,6 +46,7 @@ const laborerSchema = new mongoose.Schema({
         emergencyContact: { type: String }
     },
     isActive: { type: Boolean, default: true },
+    isDeleted: { type: Boolean, default: false },
     isBooked: { type: Boolean, default: false },
     currentBooking: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking' },
     rating: { type: Number, default: 0, min: 0, max: 5 },

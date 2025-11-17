@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const GovernmentScheme = require('../models/GovernmentScheme');
+const governmentSchemeRAG = require('../services/governmentSchemeRAG');
 const jwt = require('jsonwebtoken');
 
 // Middleware to verify JWT token
@@ -27,83 +28,20 @@ router.get('/government-schemes', authenticateToken, async (req, res) => {
         const { 
             search, 
             category, 
-            farmerType, 
-            landHolding,
-            income,
-            language = 'kn' // Default to Kannada
+            language = 'en' // Default to English
         } = req.query;
 
-        let query = { isActive: true };
+        console.log('Searching government schemes:', { search, category, language });
 
-        // RAG-based search implementation
-        if (search) {
-            query.$or = [
-                { title: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } },
-                { eligibility: { $regex: search, $options: 'i' } },
-                { benefits: { $regex: search, $options: 'i' } },
-                { keywords: { $in: [new RegExp(search, 'i')] } }
-            ];
-        }
-
-        if (category) {
-            query.category = category;
-        }
-
-        // AI-powered filtering based on farmer profile
-        if (farmerType) {
-            query['targetAudience.farmerType'] = { $in: [farmerType] };
-        }
-
-        if (landHolding) {
-            const landHoldingNum = parseInt(landHolding);
-            query.$and = [
-                { 'targetAudience.landHolding.min': { $lte: landHoldingNum } },
-                { 'targetAudience.landHolding.max': { $gte: landHoldingNum } }
-            ];
-        }
-
-        if (income) {
-            const incomeNum = parseInt(income);
-            query.$and = [
-                { 'targetAudience.income.min': { $lte: incomeNum } },
-                { 'targetAudience.income.max': { $gte: incomeNum } }
-            ];
-        }
-
-        const schemes = await GovernmentScheme.find(query)
-            .sort({ lastUpdated: -1 })
-            .limit(50);
-
-        // Translate schemes based on language
-        const translatedSchemes = schemes.map(scheme => {
-            const translated = scheme.toObject();
-            
-            // Use translations if available, otherwise fallback to original
-            if (language !== 'en' && scheme.titleTranslations && scheme.titleTranslations[language]) {
-                translated.title = scheme.titleTranslations[language];
-            }
-            if (language !== 'en' && scheme.descriptionTranslations && scheme.descriptionTranslations[language]) {
-                translated.description = scheme.descriptionTranslations[language];
-            }
-            if (language !== 'en' && scheme.eligibilityTranslations && scheme.eligibilityTranslations[language]) {
-                translated.eligibility = scheme.eligibilityTranslations[language];
-            }
-            if (language !== 'en' && scheme.benefitsTranslations && scheme.benefitsTranslations[language]) {
-                translated.benefits = scheme.benefitsTranslations[language];
-            }
-            if (language !== 'en' && scheme.applicationProcessTranslations && scheme.applicationProcessTranslations[language]) {
-                translated.applicationProcess = scheme.applicationProcessTranslations[language];
-            }
-            
-            return translated;
-        });
+        // Use RAG service for intelligent search
+        const schemes = await governmentSchemeRAG.searchSchemes(search, language, category);
 
         res.status(200).json({ 
-            schemes: translatedSchemes,
-            total: translatedSchemes.length,
+            schemes: schemes,
+            total: schemes.length,
             searchQuery: search || 'all schemes',
-            language: language
+            language: language,
+            category: category || 'all'
         });
     } catch (error) {
         console.error('Error fetching government schemes:', error);
@@ -131,7 +69,7 @@ router.get('/government-schemes/:id', authenticateToken, async (req, res) => {
 // Get scheme categories
 router.get('/scheme-categories', authenticateToken, async (req, res) => {
     try {
-        const categories = await GovernmentScheme.distinct('category');
+        const categories = governmentSchemeRAG.getCategories();
         res.status(200).json({ categories });
     } catch (error) {
         console.error('Error fetching categories:', error);
@@ -152,50 +90,15 @@ router.get('/recommended-schemes', authenticateToken, async (req, res) => {
             return res.status(404).json({ message: 'Farmer profile not found' });
         }
 
-        // AI recommendation logic
-        let recommendations = [];
-
-        // Based on farm type
-        if (farmer.farmDetails.farmType === 'crop') {
-            const cropSchemes = await GovernmentScheme.find({
-                category: { $in: ['irrigation', 'equipment', 'insurance'] },
-                isActive: true
-            }).limit(5);
-            recommendations = [...recommendations, ...cropSchemes];
-        }
-
-        // Based on farm size
-        if (farmer.farmDetails.farmSize <= 2) {
-            const smallFarmerSchemes = await GovernmentScheme.find({
-                'targetAudience.farmerType': 'small',
-                isActive: true
-            }).limit(3);
-            recommendations = [...recommendations, ...smallFarmerSchemes];
-        }
-
-        // Based on location (state/district)
-        if (farmer.location.state) {
-            const locationSchemes = await GovernmentScheme.find({
-                $or: [
-                    { 'targetAudience.region': farmer.location.state },
-                    { 'targetAudience.region': 'all' }
-                ],
-                isActive: true
-            }).limit(3);
-            recommendations = [...recommendations, ...locationSchemes];
-        }
-
-        // Remove duplicates and limit results
-        const uniqueRecommendations = recommendations.filter((scheme, index, self) => 
-            index === self.findIndex(s => s._id.toString() === scheme._id.toString())
-        ).slice(0, 10);
+        // Use RAG service for intelligent recommendations
+        const recommendations = await governmentSchemeRAG.getRecommendedSchemes(farmer);
 
         res.status(200).json({ 
-            recommendations: uniqueRecommendations,
+            recommendations: recommendations,
             basedOn: {
-                farmType: farmer.farmDetails.farmType,
-                farmSize: farmer.farmDetails.farmSize,
-                location: farmer.location.state
+                farmType: farmer.farmDetails?.farmType || 'unknown',
+                farmSize: farmer.farmDetails?.farmSize || 0,
+                location: farmer.location?.state || 'unknown'
             }
         });
     } catch (error) {

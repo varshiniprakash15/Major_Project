@@ -226,7 +226,7 @@ const GovernmentSchemes = () => {
         }
     };
 
-    // Fetch government schemes from API
+    // Fetch government schemes from RAG API
     const fetchSchemes = async (search = '', category = '') => {
         setIsLoading(true);
         try {
@@ -247,16 +247,17 @@ const GovernmentSchemes = () => {
             }
 
             const data = await response.json();
-            setSchemes(data.schemes);
+            console.log('Fetched schemes from RAG:', data);
+            setSchemes(data.schemes || []);
         } catch (error) {
             console.error('Error fetching schemes:', error);
-            toast.error(t('errors.serverError'));
+            toast.error('Failed to fetch government schemes. Please try again.');
         } finally {
             setIsLoading(false);
         }
     };
 
-    // Fetch categories
+    // Fetch categories from RAG API
     const fetchCategories = async () => {
         try {
             const token = localStorage.getItem('token');
@@ -268,14 +269,15 @@ const GovernmentSchemes = () => {
 
             if (response.ok) {
                 const data = await response.json();
-                setCategories(data.categories);
+                console.log('Fetched categories from RAG:', data);
+                setCategories(data.categories || []);
             }
         } catch (error) {
             console.error('Error fetching categories:', error);
         }
     };
 
-    // Fetch recommended schemes
+    // Fetch recommended schemes from RAG API
     const fetchRecommendedSchemes = async () => {
         try {
             const token = localStorage.getItem('token');
@@ -287,7 +289,8 @@ const GovernmentSchemes = () => {
 
             if (response.ok) {
                 const data = await response.json();
-                setSchemes(data.recommendations);
+                console.log('Fetched recommended schemes from RAG:', data);
+                setSchemes(data.recommendations || []);
             }
         } catch (error) {
             console.error('Error fetching recommended schemes:', error);
@@ -586,9 +589,11 @@ const LaborerCard = ({ laborer, onBook, isLoading = false }) => {
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900">{laborer.name}</h3>
                     <p className="text-gray-600">
-                        {laborer.skills?.primarySkills?.join(', ') || 
-                         laborer.skills?.join(', ') || 
-                         'Agricultural Skills'}
+                        {typeof laborer.skills === 'string' 
+                            ? laborer.skills 
+                            : (laborer.skills?.primarySkills?.join(', ') || 
+                               Array.isArray(laborer.skills) ? laborer.skills.join(', ') : 
+                               'Agricultural Skills')}
                     </p>
                 </div>
                 <div className="text-right">
@@ -809,12 +814,49 @@ const EnhancedDashboard = ({ onBackClick, currentUser, onLogout }) => {
     const [aiFilters, setAiFilters] = useState(null);
     const [bookingLoading, setBookingLoading] = useState({});
     const [bookingConfirmation, setBookingConfirmation] = useState(null);
+    const [aiInsights, setAiInsights] = useState(null);
+    const [laborersError, setLaborersError] = useState(null);
+    const [isLoadingLaborers, setIsLoadingLaborers] = useState(false);
+    const [servicesError, setServicesError] = useState(null);
+    const [isLoadingServices, setIsLoadingServices] = useState(false);
 
     useEffect(() => {
         fetchWeatherData();
-        fetchLaborers();
-        fetchServices();
+        fetchAIInsights();
     }, []);
+
+    // Fetch laborers when laborers page is accessed
+    useEffect(() => {
+        if (currentPage === 'laborers') {
+            fetchLaborers(null); // null = fetch all without filters
+        }
+    }, [currentPage]);
+
+    // Fetch services when services page is accessed
+    useEffect(() => {
+        if (currentPage === 'services') {
+            fetchServices(null); // null = fetch all without filters
+        }
+    }, [currentPage]);
+
+    const fetchAIInsights = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/ai-insights`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Fetched AI insights:', data);
+                setAiInsights(data.insights);
+            }
+        } catch (error) {
+            console.error('Error fetching AI insights:', error);
+        }
+    };
 
     const fetchWeatherData = async () => {
         try {
@@ -831,10 +873,32 @@ const EnhancedDashboard = ({ onBackClick, currentUser, onLogout }) => {
         }
     };
 
-    const fetchLaborers = async () => {
+    const fetchLaborers = async (filters = null) => {
+        setIsLoadingLaborers(true);
+        setLaborersError(null);
+        
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/laborers`, {
+            if (!token) {
+                throw new Error('Please login to view laborers');
+            }
+            
+            // Build query parameters only if filters are provided
+            const params = new URLSearchParams();
+            if (filters) {
+                if (filters.location) params.append('location', filters.location);
+                if (filters.minWage) params.append('minWage', filters.minWage);
+                if (filters.maxWage) params.append('maxWage', filters.maxWage);
+                if (filters.skills) params.append('skills', filters.skills);
+                if (filters.search) params.append('search', filters.search);
+                if (filters.sortBy) params.append('sortBy', filters.sortBy);
+                if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
+            }
+            
+            const queryString = params.toString();
+            const url = `${API_BASE_URL}/labourers${queryString ? `?${queryString}` : ''}`;
+            
+            const response = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -842,20 +906,53 @@ const EnhancedDashboard = ({ onBackClick, currentUser, onLogout }) => {
             
             if (response.ok) {
                 const data = await response.json();
-                setLaborers(data.laborers || data);
+                console.log('Fetched laborers:', data);
+                const laborersList = data.laborers || data;
+                if (Array.isArray(laborersList)) {
+                    setLaborers(laborersList);
+                } else {
+                    throw new Error('Invalid data format received from server');
+                }
             } else {
-                throw new Error('Failed to fetch laborers');
+                const errorData = await response.json().catch(() => ({ message: 'Failed to fetch laborers' }));
+                throw new Error(errorData.message || `Server error: ${response.status}`);
             }
         } catch (error) {
             console.error('Error fetching laborers:', error);
-            toast.error('Failed to fetch laborers. Please try again.');
+            setLaborersError(error.message || 'Failed to fetch laborers. Please try again.');
+            toast.error(error.message || 'Failed to fetch laborers. Please try again.');
+            setLaborers([]);
+        } finally {
+            setIsLoadingLaborers(false);
         }
     };
 
-    const fetchServices = async () => {
+    const fetchServices = async (filters = null) => {
+        setIsLoadingServices(true);
+        setServicesError(null);
+        
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/service-providers`, {
+            if (!token) {
+                throw new Error('Please login to view services');
+            }
+            
+            // Build query parameters only if filters are provided
+            const params = new URLSearchParams();
+            if (filters) {
+                if (filters.location) params.append('location', filters.location);
+                if (filters.minPrice) params.append('minPrice', filters.minPrice);
+                if (filters.maxPrice) params.append('maxPrice', filters.maxPrice);
+                if (filters.category) params.append('category', filters.category);
+                if (filters.search) params.append('search', filters.search);
+                if (filters.sortBy) params.append('sortBy', filters.sortBy);
+                if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
+            }
+            
+            const queryString = params.toString();
+            const url = `${API_BASE_URL}/services${queryString ? `?${queryString}` : ''}`;
+            
+            const response = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -863,31 +960,34 @@ const EnhancedDashboard = ({ onBackClick, currentUser, onLogout }) => {
             
             if (response.ok) {
                 const data = await response.json();
-                const serviceProviders = data.serviceProviders || data;
+                console.log('Fetched services:', data);
                 
-                // Flatten services from all service providers
-                const allServices = [];
-                serviceProviders.forEach(provider => {
-                    if (provider.services && provider.services.length > 0) {
-                        provider.services.forEach(service => {
-                            allServices.push({
-                                ...service,
-                                providerId: provider._id,
-                                providerName: provider.name,
-                                providerPhone: provider.mobileNumber,
-                                contactInfo: provider.contactInfo
-                            });
-                        });
-                    }
-                });
-                
-                setServices(allServices);
+                // Services are already individual items, not nested in providers
+                const servicesList = data.services || [];
+                if (Array.isArray(servicesList)) {
+                    const allServices = servicesList.map(service => ({
+                        ...service,
+                        providerName: service.providerId?.name || 'Unknown Provider',
+                        providerPhone: service.providerId?.mobileNumber || service.mobileNumber,
+                        id: service._id
+                    }));
+                    
+                    setServices(allServices);
+                    console.log('Processed services:', allServices);
+                } else {
+                    throw new Error('Invalid data format received from server');
+                }
             } else {
-                throw new Error('Failed to fetch services');
+                const errorData = await response.json().catch(() => ({ message: 'Failed to fetch services' }));
+                throw new Error(errorData.message || `Server error: ${response.status}`);
             }
         } catch (error) {
             console.error('Error fetching services:', error);
-            toast.error('Failed to fetch services. Please try again.');
+            setServicesError(error.message || 'Failed to fetch services. Please try again.');
+            toast.error(error.message || 'Failed to fetch services. Please try again.');
+            setServices([]);
+        } finally {
+            setIsLoadingServices(false);
         }
     };
 
@@ -1045,8 +1145,28 @@ const EnhancedDashboard = ({ onBackClick, currentUser, onLogout }) => {
         }
     };
 
-    const handleAIFilter = (filters) => {
-        setAiFilters(filters);
+    const handleAIFilter = async (aiRecommendations) => {
+        console.log('AI Filter applied:', aiRecommendations);
+        
+        // Convert AI recommendations to filter parameters
+        const filters = {
+            location: aiRecommendations.location,
+            minWage: aiRecommendations.priceRange?.min || 0,
+            maxWage: aiRecommendations.priceRange?.max || 10000,
+            skills: aiRecommendations.skills?.join(','),
+            search: aiRecommendations.search || '',
+            sortBy: 'rating',
+            sortOrder: 'desc'
+        };
+
+        // Apply filters based on current page
+        if (currentPage === 'laborers') {
+            await fetchLaborers(filters);
+        } else if (currentPage === 'services') {
+            await fetchServices(filters);
+        }
+        
+        setAiFilters(aiRecommendations);
         toast.success('AI filtering applied!');
     };
 
@@ -1120,6 +1240,44 @@ const EnhancedDashboard = ({ onBackClick, currentUser, onLogout }) => {
 
             <KissanAIChat />
 
+            {/* AI Insights Section */}
+            {aiInsights && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 mb-6">
+                    <div className="flex items-center mb-4">
+                        <Brain className="w-6 h-6 text-blue-600 mr-2" />
+                        <h3 className="text-xl font-semibold text-gray-900">AI Insights & Recommendations</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-white rounded-lg p-4">
+                            <h4 className="font-semibold text-gray-900 mb-2">Top Laborers</h4>
+                            {aiInsights.topLaborers?.slice(0, 2).map((laborer, index) => (
+                                <div key={index} className="text-sm text-gray-600 mb-1">
+                                    • {laborer.name} - AI Score: {laborer.aiScore}/100
+                                </div>
+                            ))}
+                            {aiInsights.laborerInsights?.map((insight, index) => (
+                                <div key={index} className="text-xs text-blue-600 mt-2">
+                                    {insight}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="bg-white rounded-lg p-4">
+                            <h4 className="font-semibold text-gray-900 mb-2">Top Services</h4>
+                            {aiInsights.topServices?.slice(0, 2).map((service, index) => (
+                                <div key={index} className="text-sm text-gray-600 mb-1">
+                                    • {service.name} - AI Score: {service.aiScore}/100
+                                </div>
+                            ))}
+                            {aiInsights.serviceInsights?.map((insight, index) => (
+                                <div key={index} className="text-xs text-green-600 mt-2">
+                                    {insight}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <FarmerCommunication />
                 <GovernmentSchemes />
@@ -1131,16 +1289,39 @@ const EnhancedDashboard = ({ onBackClick, currentUser, onLogout }) => {
         <div className="space-y-6">
             <AIFilter onFilter={handleAIFilter} type="laborers" />
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {laborers.map((laborer) => (
-                    <LaborerCard
-                        key={laborer._id || laborer.id}
-                        laborer={laborer}
-                        onBook={handleBookLaborer}
-                        isLoading={bookingLoading[laborer._id || laborer.id]}
-                    />
-                ))}
-            </div>
+            {isLoadingLaborers ? (
+                <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading laborers...</p>
+                </div>
+            ) : laborersError ? (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                    <p className="text-red-600 mb-4">{laborersError}</p>
+                    <button
+                        onClick={() => fetchLaborers()}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                        Retry
+                    </button>
+                </div>
+            ) : laborers.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No laborers available</h3>
+                    <p className="text-gray-500">There are no laborers available at the moment.</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {laborers.map((laborer) => (
+                        <LaborerCard
+                            key={laborer._id || laborer.id}
+                            laborer={laborer}
+                            onBook={handleBookLaborer}
+                            isLoading={bookingLoading[laborer._id || laborer.id]}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     );
 
@@ -1148,16 +1329,39 @@ const EnhancedDashboard = ({ onBackClick, currentUser, onLogout }) => {
         <div className="space-y-6">
             <AIFilter onFilter={handleAIFilter} type="services" />
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {services.map((service, index) => (
-                    <ServiceProviderCard
-                        key={service._id || service.id || index}
-                        service={service}
-                        onBook={handleBookService}
-                        isLoading={bookingLoading[service._id || service.id]}
-                    />
-                ))}
-            </div>
+            {isLoadingServices ? (
+                <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading services...</p>
+                </div>
+            ) : servicesError ? (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                    <p className="text-red-600 mb-4">{servicesError}</p>
+                    <button
+                        onClick={() => fetchServices()}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                        Retry
+                    </button>
+                </div>
+            ) : services.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <Wrench className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No services available</h3>
+                    <p className="text-gray-500">There are no agricultural services available at the moment.</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {services.map((service, index) => (
+                        <ServiceProviderCard
+                            key={service._id || service.id || index}
+                            service={service}
+                            onBook={handleBookService}
+                            isLoading={bookingLoading[service._id || service.id]}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     );
 

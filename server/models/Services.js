@@ -1,15 +1,15 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
 
-// Creating a Service model schema
 const serviceSchema = new mongoose.Schema({
-    name: String,
-    amount: Number,
-    mobileNumber: String
+  name: { type: String, required: true },
+  amount: { type: Number, required: true },
+  mobileNumber: { type: String, required: true },
+  isActive: { type: Boolean, default: true },   // true = visible to farmers
+  isDeleted: { type: Boolean, default: false }, // true = permanently removed
+  providerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // link to provider
+  ratings: { type: Number, default: 0 } // optional, visible to provider
+}, {
+  timestamps: true
 });
 
-// Creating a Service model
-const Service = mongoose.model('Service', serviceSchema);
-
-// Exporting the Service model
-module.exports = Service;
+module.exports = mongoose.model('Service', serviceSchema);

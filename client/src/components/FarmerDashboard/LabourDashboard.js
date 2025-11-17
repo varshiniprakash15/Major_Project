@@ -70,22 +70,64 @@ const LaborDashboard = ({ onBackClick, onLogout }) => {
     // Fetch labor services from the database
     const fetchServices = async () => {
         try {
-            const response = await axios.get('http://localhost:6002/api/labourers');
-            setLaborServices(response.data);
+            const token = localStorage.getItem('token');
+            const response = await axios.get('http://localhost:6002/api/my-laborer-profile', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (response.data.laborer) {
+                // Convert laborer profile to service format for display
+                const laborer = response.data.laborer;
+                const services = [{
+                    _id: laborer._id,
+                    name: laborer.name,
+                    amount: laborer.workDetails?.dailyWage || 500,
+                    mobileNumber: laborer.mobileNumber,
+                    skills: laborer.skills?.primarySkills?.join(', ') || 'General Labor'
+                }];
+                setLaborServices(services);
+            }
         } catch (error) {
             console.error('Error fetching services:', error);
         }
     };
 
-    // Handle adding new labor service
+    // Handle adding new labor service (updating profile)
     const handleAddService = async (e) => {
         e.preventDefault();
         try {
-            const response = await axios.post('http://localhost:6002/api/labourers', newService);
-            setLaborServices([...laborServices, response.data]);
-            setNewService({ name: '', amount: '', mobileNumber: '', date: '', skills: '' });
+            const token = localStorage.getItem('token');
+            const response = await axios.patch('http://localhost:6002/api/laborer', {
+                workType: newService.skills,
+                dailyWage: parseInt(newService.amount),
+                mobileNumber: newService.mobileNumber,
+                availability: 'available',
+                skills: [newService.skills]
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.data.laborer) {
+                // Update local state with new profile data
+                const laborer = response.data.laborer;
+                const services = [{
+                    _id: laborer._id,
+                    name: laborer.name,
+                    amount: laborer.workDetails?.dailyWage || 500,
+                    mobileNumber: laborer.mobileNumber,
+                    skills: laborer.skills?.primarySkills?.join(', ') || 'General Labor'
+                }];
+                setLaborServices(services);
+                setNewService({ name: '', amount: '', mobileNumber: '', date: '', skills: '' });
+                alert('Profile updated successfully!');
+            }
         } catch (error) {
-            console.error('Error adding service:', error);
+            console.error('Error updating profile:', error);
+            alert('Failed to update profile. Please try again.');
         }
     };
 

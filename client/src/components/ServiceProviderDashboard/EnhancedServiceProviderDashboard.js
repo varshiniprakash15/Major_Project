@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     Menu, ArrowLeft, Wrench, Star, MapPin, Clock, Settings, LogOut, CheckCircle, XCircle, AlertCircle,
     Edit, Bell, DollarSign, Briefcase, MessageCircle, Plus,
-    Trash2, Package, BarChart3
+    Trash2, Package, BarChart3, Save
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -13,12 +13,35 @@ const EnhancedServiceProviderDashboard = ({ onBackClick, currentUser, onLogout }
     const [currentPage, setCurrentPage] = useState('dashboard');
     const [isEditing, setIsEditing] = useState(false);
     const [showAddService, setShowAddService] = useState(false);
+    const [profileData, setProfileData] = useState({
+        name: currentUser?.name || 'Tech Services Pvt Ltd',
+        businessType: 'company',
+        location: 'Bangalore, Karnataka',
+        rating: 4.8,
+        totalServices: 45,
+        completedServices: 42,
+        pendingServices: 2,
+        cancelledServices: 1,
+        totalEarnings: 125000,
+        mobileNumber: currentUser?.mobileNumber || '',
+        email: currentUser?.email || ''
+    });
+    const [services, setServices] = useState([]);
+    const [bookings, setBookings] = useState([]);
+    const [notifications, setNotifications] = useState([]);
+    const [messages, setMessages] = useState([]);
+    const [loadingStates, setLoadingStates] = useState({});
+    const [newService, setNewService] = useState({
+        name: '',
+        amount: '',
+        mobileNumber: ''
+    });
 
     // Fetch services from database
     const fetchServices = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:6002/api/service-provider-profile', {
+            const response = await fetch('http://localhost:6002/api/my-services', {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -90,74 +113,160 @@ const EnhancedServiceProviderDashboard = ({ onBackClick, currentUser, onLogout }
         }
     };
 
+    const fetchServiceProviderProfile = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('http://localhost:6002/api/service-provider-profile', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.serviceProvider) {
+                    setProfileData(prev => ({
+                        ...prev,
+                        name: data.serviceProvider.name || prev.name,
+                        mobileNumber: data.serviceProvider.mobileNumber || prev.mobileNumber,
+                        location: data.serviceProvider.location ? 
+                            `${data.serviceProvider.location.district || ''}, ${data.serviceProvider.location.state || ''}`.trim() : 
+                            prev.location
+                    }));
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching service provider profile:', error);
+        }
+    };
+
     useEffect(() => {
         fetchServices();
         fetchBookings();
         fetchNotifications();
         fetchMessages();
+        fetchServiceProviderProfile();
     }, []);
-    const [profileData] = useState({
-        name: currentUser?.name || 'Tech Services Pvt Ltd',
-        businessType: 'company',
-        location: 'Bangalore, Karnataka',
-        rating: 4.8,
-        totalServices: 45,
-        completedServices: 42,
-        pendingServices: 2,
-        cancelledServices: 1,
-        totalEarnings: 125000
-    });
-    const [services, setServices] = useState([]);
-    const [bookings, setBookings] = useState([]);
-    const [notifications, setNotifications] = useState([]);
-    const [messages, setMessages] = useState([]);
-    const [loadingStates, setLoadingStates] = useState({});
-    const [newService, setNewService] = useState({
-        name: '',
-        type: '',
-        basePrice: 0,
-        pricingType: 'fixed',
-        serviceArea: 50,
-        description: ''
-    });
 
-    const handleAddService = () => {
-        if (newService.name && newService.type && newService.basePrice > 0) {
-            const service = {
-                id: services.length + 1,
-                ...newService,
-                isActive: true,
-                rating: 0,
-                totalBookings: 0
-            };
-            setServices([...services, service]);
-            setNewService({
-                name: '',
-                type: '',
-                basePrice: 0,
-                pricingType: 'fixed',
-                serviceArea: 50,
-                description: ''
+    const handleAddService = async () => {
+        if (!newService.name || newService.name.trim() === '') {
+            toast.error('Please enter a service name');
+            return;
+        }
+        
+        const amount = parseInt(newService.amount);
+        if (!amount || amount <= 0) {
+            toast.error('Please enter a valid amount greater than 0');
+            return;
+        }
+        
+        if (!newService.mobileNumber || newService.mobileNumber.trim() === '') {
+            toast.error('Please enter a mobile number');
+            return;
+        }
+        
+        // Validate mobile number format (basic validation)
+        const mobileRegex = /^[0-9]{10}$/;
+        if (!mobileRegex.test(newService.mobileNumber.replace(/\D/g, ''))) {
+            toast.error('Please enter a valid 10-digit mobile number');
+            return;
+        }
+        
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                toast.error('Please login to add services');
+                return;
+            }
+            
+            const response = await fetch('http://localhost:6002/api/add-service', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    name: newService.name.trim(),
+                    amount: amount,
+                    mobileNumber: newService.mobileNumber.replace(/\D/g, '')
+                })
             });
-            setShowAddService(false);
-            toast.success('Service added successfully!');
-        } else {
-            toast.error('Please fill in all required fields');
+
+            if (response.ok) {
+                const data = await response.json();
+                setServices([data.service, ...services]);
+                setNewService({
+                    name: '',
+                    amount: '',
+                    mobileNumber: ''
+                });
+                setShowAddService(false);
+                toast.success('Service added successfully!');
+                // Refresh services list
+                fetchServices();
+            } else {
+                const errorData = await response.json().catch(() => ({ message: 'Failed to add service' }));
+                toast.error(`Failed to add service: ${errorData.message || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Error adding service:', error);
+            toast.error('Failed to add service. Please try again.');
         }
     };
 
-    const handleDeleteService = (serviceId) => {
-        setServices(services.filter(service => service.id !== serviceId));
-        toast.success('Service deleted successfully!');
+    const handleDeleteService = async (serviceId) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://localhost:6002/api/service/${serviceId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                setServices(services.filter(service => service._id !== serviceId));
+                toast.success('Service deleted successfully!');
+            } else {
+                const errorData = await response.json();
+                toast.error(`Failed to delete service: ${errorData.message}`);
+            }
+        } catch (error) {
+            console.error('Error deleting service:', error);
+            toast.error('Failed to delete service. Please try again.');
+        }
     };
 
-    const handleToggleService = (serviceId) => {
-        setServices(services.map(service => 
-            service.id === serviceId 
-                ? { ...service, isActive: !service.isActive }
-                : service
-        ));
-        toast.success('Service status updated!');
+    const handleToggleService = async (serviceId) => {
+        try {
+            const service = services.find(s => s._id === serviceId);
+            if (!service) return;
+
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://localhost:6002/api/service/${serviceId}/status`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ isActive: !service.isActive })
+            });
+
+            if (response.ok) {
+                setServices(services.map(s => 
+                    s._id === serviceId 
+                        ? { ...s, isActive: !s.isActive }
+                        : s
+                ));
+                toast.success(`Service ${!service.isActive ? 'activated' : 'deactivated'} successfully!`);
+            } else {
+                const errorData = await response.json();
+                toast.error(`Failed to update service: ${errorData.message}`);
+            }
+        } catch (error) {
+            console.error('Error updating service:', error);
+            toast.error('Failed to update service. Please try again.');
+        }
     };
 
     const handleAcceptBooking = async (bookingId) => {
@@ -340,7 +449,7 @@ const EnhancedServiceProviderDashboard = ({ onBackClick, currentUser, onLogout }
                             <Package className="w-8 h-8 text-purple-600 mr-3" />
                             <div>
                                 <p className="text-sm text-gray-600">Active Services</p>
-                                <p className="text-2xl font-bold text-gray-900">{services.filter(s => s.isActive).length}</p>
+                                <p className="text-2xl font-bold text-gray-900">{services.filter(s => s.isActive && !s.isDeleted).length}</p>
                             </div>
                         </div>
                     </div>
@@ -413,72 +522,37 @@ const EnhancedServiceProviderDashboard = ({ onBackClick, currentUser, onLogout }
                         <h4 className="text-lg font-semibold mb-4">Add New Service</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Service Name</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Service Name *</label>
                                 <input
                                     type="text"
                                     value={newService.name}
                                     onChange={(e) => setNewService({...newService, name: e.target.value})}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                    placeholder="Enter service name"
+                                    placeholder="e.g., Plumber, Electrician, Mechanic"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Service Type</label>
-                                <select
-                                    value={newService.type}
-                                    onChange={(e) => setNewService({...newService, type: e.target.value})}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                >
-                                    <option value="">Select Type</option>
-                                    <option value="plumbing">Plumbing</option>
-                                    <option value="electrical">Electrical</option>
-                                    <option value="machinery">Machinery</option>
-                                    <option value="irrigation">Irrigation</option>
-                                    <option value="pest_control">Pest Control</option>
-                                    <option value="soil_testing">Soil Testing</option>
-                                    <option value="consultation">Consultation</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Base Price (₹)</label>
-                                <input
-                                    type="number"
-                                    value={newService.basePrice}
-                                    onChange={(e) => setNewService({...newService, basePrice: parseInt(e.target.value)})}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Pricing Type</label>
-                                <select
-                                    value={newService.pricingType}
-                                    onChange={(e) => setNewService({...newService, pricingType: e.target.value})}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                >
-                                    <option value="fixed">Fixed</option>
-                                    <option value="hourly">Hourly</option>
-                                    <option value="per_acre">Per Acre</option>
-                                    <option value="per_service">Per Service</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Service Area (km)</label>
-                                <input
-                                    type="number"
-                                    value={newService.serviceArea}
-                                    onChange={(e) => setNewService({...newService, serviceArea: parseInt(e.target.value)})}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Amount (₹) *</label>
                                 <input
                                     type="text"
-                                    value={newService.description}
-                                    onChange={(e) => setNewService({...newService, description: e.target.value})}
+                                    inputMode="numeric"
+                                    value={newService.amount}
+                                    onChange={(e) => {
+                                        const value = e.target.value.replace(/\D/g, '');
+                                        setNewService({...newService, amount: value});
+                                    }}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                    placeholder="Service description"
+                                    placeholder="Enter service cost"
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Mobile Number *</label>
+                                <input
+                                    type="tel"
+                                    value={newService.mobileNumber}
+                                    onChange={(e) => setNewService({...newService, mobileNumber: e.target.value})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    placeholder="Enter contact number"
                                 />
                             </div>
                         </div>
@@ -500,13 +574,22 @@ const EnhancedServiceProviderDashboard = ({ onBackClick, currentUser, onLogout }
                 )}
 
                 <div className="space-y-4">
-                    {services.map((service) => (
-                        <div key={service.id} className="border border-gray-200 rounded-lg p-6">
+                    {services.length === 0 ? (
+                        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                            <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">No services added yet</h3>
+                            <p className="text-gray-500 mb-4">Click the "Add Service" button above to create your first service.</p>
+                        </div>
+                    ) : (
+                        services.map((service) => (
+                        <div key={service._id} className="border border-gray-200 rounded-lg p-6">
                             <div className="flex justify-between items-start mb-4">
                                 <div>
                                     <h4 className="text-lg font-semibold text-gray-900">{service.name}</h4>
-                                    <p className="text-gray-600 capitalize">{service.type.replace('_', ' ')}</p>
-                                    <p className="text-sm text-gray-500">{service.description}</p>
+                                    <p className="text-gray-600">Contact: {service.mobileNumber}</p>
+                                    <p className="text-sm text-gray-500">
+                                        Created: {new Date(service.createdAt).toLocaleDateString()}
+                                    </p>
                                 </div>
                                 <div className="text-right">
                                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${
@@ -514,46 +597,46 @@ const EnhancedServiceProviderDashboard = ({ onBackClick, currentUser, onLogout }
                                     }`}>
                                         {service.isActive ? 'Active' : 'Inactive'}
                                     </span>
-                                    <p className="text-lg font-semibold text-gray-900 mt-1">₹{service.basePrice}</p>
-                                    <p className="text-sm text-gray-500">{service.pricingType}</p>
+                                    <p className="text-lg font-semibold text-gray-900 mt-1">₹{service.amount}</p>
+                                    <p className="text-sm text-gray-500">Per service</p>
                                 </div>
                             </div>
                             
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                                 <div>
                                     <p className="text-sm text-gray-600">Rating</p>
                                     <p className="font-semibold flex items-center">
                                         <Star className="w-4 h-4 text-yellow-500 mr-1" />
-                                        {service.rating}
+                                        {service.ratings || 0}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-gray-600">Total Bookings</p>
-                                    <p className="font-semibold">{service.totalBookings}</p>
+                                    <p className="text-sm text-gray-600">Status</p>
+                                    <p className="font-semibold capitalize">
+                                        {service.isActive ? 'Visible to Farmers' : 'Hidden from Farmers'}
+                                    </p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-gray-600">Service Area</p>
-                                    <p className="font-semibold">{service.serviceArea}km</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-600">Earnings</p>
-                                    <p className="font-semibold">₹{service.basePrice * service.totalBookings}</p>
+                                    <p className="text-sm text-gray-600">Service ID</p>
+                                    <p className="font-semibold text-xs text-gray-500">
+                                        {service._id.slice(-8)}
+                                    </p>
                                 </div>
                             </div>
 
                             <div className="flex space-x-2">
                                 <button
-                                    onClick={() => handleToggleService(service.id)}
+                                    onClick={() => handleToggleService(service._id)}
                                     className={`px-4 py-2 rounded-lg transition-colors ${
                                         service.isActive 
                                             ? 'bg-red-600 text-white hover:bg-red-700' 
                                             : 'bg-green-600 text-white hover:bg-green-700'
                                     }`}
                                 >
-                                    {service.isActive ? 'Deactivate' : 'Activate'}
+                                    {service.isActive ? 'Deactivate' : 'Reactivate'}
                                 </button>
                                 <button
-                                    onClick={() => handleDeleteService(service.id)}
+                                    onClick={() => handleDeleteService(service._id)}
                                     className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center"
                                 >
                                     <Trash2 className="w-4 h-4 mr-2" />
@@ -561,7 +644,8 @@ const EnhancedServiceProviderDashboard = ({ onBackClick, currentUser, onLogout }
                                 </button>
                             </div>
                         </div>
-                    ))}
+                        ))
+                    )}
                 </div>
             </div>
         </div>
@@ -828,6 +912,122 @@ const EnhancedServiceProviderDashboard = ({ onBackClick, currentUser, onLogout }
         </div>
     );
 
+    const handleUpdateSettings = async () => {
+        if (!profileData.name || profileData.name.trim() === '') {
+            toast.error('Please enter your name');
+            return;
+        }
+        
+        if (!profileData.mobileNumber || profileData.mobileNumber.trim() === '') {
+            toast.error('Please enter a mobile number');
+            return;
+        }
+        
+        // Validate mobile number format
+        const mobileRegex = /^[0-9]{10}$/;
+        if (!mobileRegex.test(profileData.mobileNumber.replace(/\D/g, ''))) {
+            toast.error('Please enter a valid 10-digit mobile number');
+            return;
+        }
+        
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                toast.error('Please login to update settings');
+                return;
+            }
+            
+            // Update service provider profile
+            const response = await fetch('http://localhost:6002/api/service-provider-profile', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    name: profileData.name.trim(),
+                    mobileNumber: profileData.mobileNumber.replace(/\D/g, '')
+                })
+            });
+            
+            if (response.ok) {
+                toast.success('Settings updated successfully!');
+                fetchServiceProviderProfile();
+            } else {
+                const errorData = await response.json().catch(() => ({ message: 'Failed to update settings' }));
+                toast.error(errorData.message || 'Failed to update settings');
+            }
+        } catch (error) {
+            console.error('Error updating settings:', error);
+            toast.error('Failed to update settings. Please try again.');
+        }
+    };
+
+    const renderSettings = () => (
+        <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-lg p-6">
+                <h3 className="text-xl font-semibold mb-4">Profile Settings</h3>
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
+                        <input
+                            type="text"
+                            value={profileData.name}
+                            onChange={(e) => setProfileData({...profileData, name: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            placeholder="Enter business name"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Mobile Number</label>
+                        <input
+                            type="tel"
+                            value={profileData.mobileNumber}
+                            onChange={(e) => {
+                                const value = e.target.value.replace(/\D/g, '');
+                                if (value.length <= 10) {
+                                    setProfileData({...profileData, mobileNumber: value});
+                                }
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            placeholder="Enter mobile number"
+                            maxLength={10}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                        <input
+                            type="text"
+                            value={profileData.location}
+                            onChange={(e) => setProfileData({...profileData, location: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            placeholder="Enter location"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Business Type</label>
+                        <select
+                            value={profileData.businessType}
+                            onChange={(e) => setProfileData({...profileData, businessType: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        >
+                            <option value="company">Company</option>
+                            <option value="individual">Individual</option>
+                            <option value="partnership">Partnership</option>
+                        </select>
+                    </div>
+                    <button
+                        onClick={handleUpdateSettings}
+                        className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center"
+                    >
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <div className="flex h-screen bg-gradient-to-br from-purple-50 to-indigo-50">
             {/* Sidebar */}
@@ -895,6 +1095,7 @@ const EnhancedServiceProviderDashboard = ({ onBackClick, currentUser, onLogout }
                                 {currentPage === 'notifications' && renderNotifications()}
                                 {currentPage === 'analytics' && renderAnalytics()}
                                 {currentPage === 'messages' && renderMessages()}
+                                {currentPage === 'settings' && renderSettings()}
                             </motion.div>
                         </AnimatePresence>
                     </div>

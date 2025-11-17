@@ -61,7 +61,14 @@ function App() {
 
   const handleRoleSelected = (role) => {
     setSelectedRole(role);
-    setUserState('profileCompletion');
+    // Map role to dashboard type
+    const roleToDashboard = {
+      'farmer': 'farmOwner',
+      'laborer': 'labor',
+      'serviceProvider': 'serviceProvider'
+    };
+    setDashboardType(roleToDashboard[role]);
+    setUserState('dashboard'); // Go directly to dashboard
   };
 
   const handleProfileCompleted = () => {

@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const serviceProviderSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
     name: { type: String, required: true },
     mobileNumber: { type: String, required: true },
     aadharNumber: { type: String, required: true },

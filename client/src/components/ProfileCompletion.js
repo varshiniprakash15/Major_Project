@@ -107,7 +107,15 @@ const ProfileCompletion = ({ role, onProfileComplete }) => {
                         ...payload,
                         avatar: avatarUrl,
                         businessType: formData.businessType || 'individual',
-                        services: formData.services || [],
+                        services: (formData.services || []).map(service => ({
+                            serviceName: service,
+                            serviceType: 'other',
+                            description: `Professional ${service} services`,
+                            basePrice: 1000,
+                            pricingType: 'fixed',
+                            serviceArea: 50,
+                            isActive: true
+                        })),
                         certifications: formData.certifications || [],
                         licenses: formData.licenses || []
                     };
@@ -116,6 +124,8 @@ const ProfileCompletion = ({ role, onProfileComplete }) => {
                     throw new Error('Invalid role');
             }
 
+            console.log('Submitting profile data:', { endpoint, payload });
+            
             const response = await fetch(`http://localhost:6002${endpoint}`, {
                 method: 'POST',
                 headers: {
@@ -125,9 +135,12 @@ const ProfileCompletion = ({ role, onProfileComplete }) => {
                 body: JSON.stringify(payload)
             });
 
+            console.log('Response status:', response.status);
+            const responseData = await response.json();
+            console.log('Response data:', responseData);
+
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to complete profile');
+                throw new Error(responseData.message || `Failed to complete profile: ${response.status}`);
             }
 
             toast.success('Profile completed successfully!');

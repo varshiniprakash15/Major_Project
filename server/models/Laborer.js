@@ -69,4 +69,5 @@ laborerSchema.pre('save', function(next) {
     next();
 });
 
-module.exports = mongoose.model('Laborer', laborerSchema);
+// Explicitly specify collection name as 'laborers' instead of default 'labourers'
+module.exports = mongoose.model('Laborer', laborerSchema, 'laborers');

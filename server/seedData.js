@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const GovernmentScheme = require('./models/GovernmentScheme');
 require('dotenv').config();
 
+
 const seedGovernmentSchemes = async () => {
     try {
         // Connect to MongoDB

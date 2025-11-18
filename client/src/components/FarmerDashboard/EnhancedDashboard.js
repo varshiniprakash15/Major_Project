@@ -3,12 +3,13 @@ import {
     Menu, ArrowLeft, Sun, CloudRain, Wind, Thermometer, BarChart2, 
     Calendar, HelpCircle, LogOut, Search, Users, Wrench,
     MessageCircle, BookOpen, Star, Phone, CheckCircle, Send, Bot, Brain,
-    ExternalLink, MessageSquare, Eye, EyeOff
+    ExternalLink, MessageSquare, Eye, EyeOff, Leaf
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 // import axios from 'axios';
 import { useLanguage } from '../../contexts/LanguageContext';
+import CropHealthDashboard from '../CropHealth/CropHealthDashboard';
 
 const API_BASE_URL = "http://localhost:6002/api";
 
@@ -1174,6 +1175,7 @@ const EnhancedDashboard = ({ onBackClick, currentUser, onLogout }) => {
         { icon: <BarChart2 className="w-5 h-5 mr-3" />, text: t('farmer.dashboard'), page: 'dashboard' },
         { icon: <Users className="w-5 h-5 mr-3" />, text: t('farmer.laborers'), page: 'laborers' },
         { icon: <Wrench className="w-5 h-5 mr-3" />, text: t('farmer.services'), page: 'services' },
+        { icon: <Leaf className="w-5 h-5 mr-3" />, text: 'ಕ್ರಾಪ್ ಹೆಲ್ತ್ ಸಹಾಯಕ', page: 'cropHealth' },
         { icon: <MessageCircle className="w-5 h-5 mr-3" />, text: t('farmer.community'), page: 'community' },
         { icon: <BookOpen className="w-5 h-5 mr-3" />, text: t('farmer.governmentSchemes'), page: 'schemes' },
         { icon: <Calendar className="w-5 h-5 mr-3" />, text: "Calendar", page: 'calendar' },
@@ -1429,6 +1431,7 @@ const EnhancedDashboard = ({ onBackClick, currentUser, onLogout }) => {
                                 {currentPage === 'dashboard' && renderDashboard()}
                                 {currentPage === 'laborers' && renderLaborers()}
                                 {currentPage === 'services' && renderServices()}
+                                {currentPage === 'cropHealth' && <CropHealthDashboard />}
                                 {currentPage === 'community' && <FarmerCommunication />}
                                 {currentPage === 'schemes' && <GovernmentSchemes />}
                             </motion.div>

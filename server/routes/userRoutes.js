@@ -11,7 +11,11 @@ const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
 
-const client = twilio(accountSid, authToken);
+// Only initialize Twilio if valid credentials are provided
+let client = null;
+if (accountSid && authToken && accountSid.startsWith('AC')) {
+    client = twilio(accountSid, authToken);
+}
 
 function formatIndianPhoneNumber(number) {
     // Remove any non-digit characters
@@ -35,8 +39,8 @@ async function generateAndSendPIN(mobileNumber, message) {
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
     const formattedNumber = formatIndianPhoneNumber(mobileNumber);
 
-    // Check if Twilio is properly configured
-    if (!accountSid || !authToken || !twilioPhoneNumber) {
+    // Check if Twilio is properly configured and client was initialized
+    if (!client || !accountSid || !authToken || !twilioPhoneNumber) {
         console.log('Twilio not configured, using development mode');
         console.log(`[DEV MODE] PIN for ${mobileNumber}: ${pin}`);
         return pin;

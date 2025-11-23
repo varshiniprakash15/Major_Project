@@ -616,7 +616,7 @@ const EnhancedLaborerDashboard = ({ onBackClick, currentUser, onLogout }) => {
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Skills (comma-separated)</label>
                                 <input
                                     type="text"
-                                    value={newService.skills.join(', ')}
+                                    value={Array.isArray(newService.skills) ? newService.skills.join(', ') : ''}
                                     onChange={(e) => setNewService({...newService, skills: e.target.value.split(',').map(s => s.trim()).filter(s => s)})}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     placeholder="e.g., Harvesting, Plowing, Irrigation"
@@ -984,7 +984,7 @@ const EnhancedLaborerDashboard = ({ onBackClick, currentUser, onLogout }) => {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Skills (comma-separated)</label>
                         <input
                             type="text"
-                            value={profileData.skills.join(', ')}
+                            value={Array.isArray(profileData.skills) ? profileData.skills.join(', ') : ''}
                             onChange={(e) => setProfileData({...profileData, skills: e.target.value.split(',').map(s => s.trim())})}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />

@@ -534,12 +534,15 @@ const Dashboard = ({ onBackClick }) => {
                             <tr key={laborer.id}>
                                 <td className="py-2 px-4 border-b">{laborer.name}</td>
                                 <td className="py-2 px-4 border-b">
-                                    {typeof laborer.skills === 'string' 
-                                        ? laborer.skills 
-                                        : (laborer.skills?.primarySkills?.join(', ') || 
-                                           Array.isArray(laborer.skills) ? laborer.skills.join(', ') : 
-                                           'Agricultural Skills')}
-                                </td>
+    {typeof laborer.skills === 'string'
+        ? laborer.skills
+        : Array.isArray(laborer.skills?.primarySkills)
+            ? laborer.skills.primarySkills.toString()
+            : Array.isArray(laborer.skills)
+                ? laborer.skills.toString()
+                : 'Agricultural Skills'}
+</td>
+
                                 <td className="py-2 px-4 border-b">₹{laborer.workDetails?.dailyWage || laborer.amount || 500}</td>
                                 <td className="py-2 px-4 border-b">{laborer.mobileNumber}</td>
                                 <td className="py-2 px-4 border-b">{laborer.date}</td>

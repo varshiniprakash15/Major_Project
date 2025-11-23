@@ -589,12 +589,17 @@ const LaborerCard = ({ laborer, onBook, isLoading = false }) => {
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900">{laborer.name}</h3>
                     <p className="text-gray-600">
-                        {typeof laborer.skills === 'string' 
-                            ? laborer.skills 
-                            : (laborer.skills?.primarySkills?.join(', ') || 
-                               Array.isArray(laborer.skills) ? laborer.skills.join(', ') : 
-                               'Agricultural Skills')}
-                    </p>
+    {typeof laborer.skills === 'string'
+        ? laborer.skills
+        : (
+            laborer.skills?.primarySkills?.toString() ||
+            (Array.isArray(laborer.skills)
+                ? laborer.skills.toString()
+                : 'Agricultural Skills')
+        )
+    }
+</p>
+
                 </div>
                 <div className="text-right">
                     <p className="text-2xl font-bold text-green-600">₹{laborer.workDetails?.dailyWage || laborer.amount || 500}</p>

@@ -24,12 +24,12 @@ const laborerSchema = new mongoose.Schema({
     },
     workDetails: {
         dailyWage: { type: Number, required: true },
-        preferredWorkTypes: [{ 
-            type: String, 
-            enum: ['harvesting', 'plowing', 'irrigation', 'seeding', 'fertilizing', 'planting', 'weeding', 'pruning', 'other'] 
+        preferredWorkTypes: [{
+            type: String,
+            enum: ['harvesting', 'plowing', 'irrigation', 'seeding', 'fertilizing', 'planting', 'weeding', 'pruning', 'other']
         }],
-        availability: { 
-            type: String, 
+        availability: {
+            type: String,
             enum: ['available', 'busy', 'unavailable'],
             default: 'available'
         },
@@ -62,9 +62,11 @@ const laborerSchema = new mongoose.Schema({
     }],
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
+}, {
+    collection: 'laborers'  // This is where Suresh Yadav's data is located
 });
 
-laborerSchema.pre('save', function(next) {
+laborerSchema.pre('save', function (next) {
     this.updatedAt = new Date();
     next();
 });

@@ -6,7 +6,7 @@ const FarmOwner = require('../models/FarmerOwner');
 const Laborer = require('../models/Laborer');
 const ServiceProvider = require('../models/ServiceProvider');
 const Service = require('../models/Services.js')
-const Labour = require('../models/Labourers.js')
+// const Labour = require('../models/Labourers.js') // DEPRECATED: Using Laborer model instead
 
 
 
@@ -230,45 +230,53 @@ router.post('/logout', async (req, res) => {
 
 
 
-// Add a new labourer
+// Add a new labourer (using new Laborer model)
 router.post('/labourers', async (req, res) => {
-    const labour = new Labour({
-        name: req.body.name,
-        amount: req.body.amount,
-        mobileNumber: req.body.mobileNumber,
-        date: req.body.date,
-        skills: req.body.skills
-    });
-
     try {
-        const newLabour = await labour.save(); // Fixed: Use the instance 'labour' instead of Labour
-        res.status(201).json(newLabour);
+        const { name, mobileNumber, aadharNumber, skills, amount, date } = req.body;
+        
+        // Parse skills if it's a string
+        const primarySkills = typeof skills === 'string' ? skills.split(',').map(s => s.trim()) : (Array.isArray(skills) ? skills : ['general']);
+        
+        const laborer = new Laborer({
+            userId: null,
+            name: name || 'Unknown',
+            mobileNumber: mobileNumber || '0000000000',
+            aadharNumber: aadharNumber || 'N/A',
+            location: {
+                address: 'Not specified',
+                pincode: '000000',
+                state: 'Unknown',
+                district: 'Unknown'
+            },
+            skills: {
+                primarySkills: primarySkills,
+                experience: 0
+            },
+            workDetails: {
+                dailyWage: parseInt(amount) || 500,
+                preferredWorkTypes: ['other'],
+                availability: 'available'
+            },
+            createdAt: date || new Date()
+        });
+
+        const newLaborer = await laborer.save();
+        res.status(201).json(newLaborer);
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
 });
 
-// Get all labourers
+// Get all labourers (using new Laborer model)
 router.get('/labourers', async (req, res) => {
     try {
-        const labourers = await Labour.find();
-        res.json(labourers);
-    } catch (error) { // Fixed: Added error parameter
+        const laborers = await Laborer.find({ isDeleted: false });
+        res.json(laborers);
+    } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
-
-//Loading the labourers in farmer dashboard 
-
-router.get('/labourers', async (req, res) => {
-    try {
-        const labourers = await Labour.find();
-        res.json(labourers);
-    }
-    catch {
-        res.status(500).json({ message: error.message });
-    }
-})
 
 // Add a new service
 router.post('/services', async (req, res) => {

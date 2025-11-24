@@ -1,3 +1,4 @@
+// client/src/components/FarmerDashboard/EnhancedDashboard.js
 import React, { useState, useEffect } from 'react';
 import { 
     Menu, ArrowLeft, Sun, CloudRain, Wind, Thermometer, BarChart2, 
@@ -1242,7 +1243,15 @@ const EnhancedDashboard = ({ onBackClick, currentUser, onLogout }) => {
                     Find Services
                 </button>
             </div>
-
+{/* Kissan-GPT Features button */}
+<div className="mt-6">
+    <button
+        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-6 rounded-lg shadow-md transition-colors duration-200 text-center text-lg"
+        onClick={() => setCurrentPage('Kissan-GPT')}
+    >
+        Kissan Mitra
+    </button>
+</div>
             <KissanAIChat />
 
             {/* AI Insights Section */}
@@ -1329,6 +1338,41 @@ const EnhancedDashboard = ({ onBackClick, currentUser, onLogout }) => {
             )}
         </div>
     );
+    // Add to EnhancedDashboard.js
+    const renderKissanGPTFeatures = () => (
+    <div className="space-y-6">
+        <div className="bg-purple-50 rounded-lg shadow-lg p-6 w-full max-w-xl mx-auto flex flex-col items-center">
+            <h3 className="text-xl font-bold text-purple-700 mb-2">Kissan-GPT Features</h3>
+            <p className="text-gray-700 mb-4 text-center">
+                Access AI-powered farming articles, crop/soil management tools, and chatbot.
+            </p>
+            {/* First row: two buttons */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mb-6">
+                <button
+                    className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-colors duration-200"
+                    onClick={() => window.open('http://localhost:8502/', '_blank')}
+                >
+                    Articles & Resources
+                </button>
+                <button
+                    className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-colors duration-200"
+                    onClick={() => window.open('http://localhost:8503/', '_blank')}
+                >
+                    Crop & Soil Management
+                </button>
+            </div>
+            {/* Second row: single wide button */}
+<div className="w-full">
+    <button
+        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-colors duration-200"
+        onClick={() => window.open('http://localhost:8504/', '_blank')}
+    >
+        Chatbot
+    </button>
+</div>
+        </div>
+    </div>
+);
 
     const renderServices = () => (
         <div className="space-y-6">
@@ -1436,6 +1480,7 @@ const EnhancedDashboard = ({ onBackClick, currentUser, onLogout }) => {
                                 {currentPage === 'services' && renderServices()}
                                 {currentPage === 'community' && <FarmerCommunication />}
                                 {currentPage === 'schemes' && <GovernmentSchemes />}
+                                {currentPage === 'Kissan-GPT' && renderKissanGPTFeatures()}
                             </motion.div>
                         </AnimatePresence>
                     </div>

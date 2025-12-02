@@ -1,6 +1,6 @@
-
+// major_project/server/db/conn.js
 const mongoose = require("mongoose");
-const DB = process.env.DATABASE;
+const DB = process.env.MONGO_URL;
 
 
 

@@ -1,0 +1,87 @@
+{
+  "created_at": "2025-11-24T07:05:10.159Z",
+  "total_accounts": 9,
+  "accounts": [
+    {
+      "type": "Farmer",
+      "name": "Rajesh Kumar",
+      "mobile": "9876543210",
+      "aadhar": "123456789012",
+      "pin": "1234",
+      "location": "Gaya, Bihar"
+    },
+    {
+      "type": "Farmer",
+      "name": "Priya Sharma",
+      "mobile": "9876543213",
+      "aadhar": "123456789013",
+      "pin": "1234",
+      "location": "Patna, Bihar"
+    },
+    {
+      "type": "Farmer",
+      "name": "Amit Singh",
+      "mobile": "9876543216",
+      "aadhar": "123456789014",
+      "pin": "1234",
+      "location": "Muzaffarpur, Bihar"
+    },
+    {
+      "type": "Laborer",
+      "name": "Suresh Yadav",
+      "mobile": "9876543220",
+      "aadhar": "123456789020",
+      "pin": "1234",
+      "location": "Gaya, Bihar",
+      "skills": "harvesting, plowing, seeding",
+      "dailyWage": 450
+    },
+    {
+      "type": "Laborer",
+      "name": "Meera Devi",
+      "mobile": "9876543223",
+      "aadhar": "123456789021",
+      "pin": "1234",
+      "location": "Patna, Bihar",
+      "skills": "weeding, planting, irrigation",
+      "dailyWage": 400
+    },
+    {
+      "type": "Laborer",
+      "name": "Ramesh Kumar",
+      "mobile": "9876543226",
+      "aadhar": "123456789022",
+      "pin": "1234",
+      "location": "Muzaffarpur, Bihar",
+      "skills": "pruning, harvesting, fertilizing",
+      "dailyWage": 550
+    },
+    {
+      "type": "Service Provider",
+      "name": "Vikash Agrotech",
+      "mobile": "9876543230",
+      "aadhar": "123456789030",
+      "pin": "1234",
+      "location": "Gaya, Bihar",
+      "services": "Drip Irrigation Installation, Soil Testing"
+    },
+    {
+      "type": "Service Provider",
+      "name": "Dr. Rajesh Verma",
+      "mobile": "9876543233",
+      "aadhar": "123456789031",
+      "pin": "1234",
+      "location": "Patna, Bihar",
+      "services": "Agricultural Consultation, Pest Control Services"
+    },
+    {
+      "type": "Service Provider",
+      "name": "Modern Farm Equipment Co.",
+      "mobile": "9876543236",
+      "aadhar": "123456789032",
+      "pin": "1234",
+      "location": "Muzaffarpur, Bihar",
+      "services": "Tractor Rental, Harvesting Machine Rental"
+    }
+  ]
+}

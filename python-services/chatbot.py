@@ -15,8 +15,15 @@ nltk.download('punkt')
 nltk.download('averaged_perceptron_tagger')
 nltk.download('wordnet')
 
+
+
+
 # Set up the Groq API key
-os.environ["GROQ_API_KEY"] = "api_key_needed_here"
+# os.environ["GROQ_API_KEY"] = "api_key_needed_here"
+
+
+
+
 client = Groq()
 translator = Translate()
 

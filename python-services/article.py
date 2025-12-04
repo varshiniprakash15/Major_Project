@@ -5,7 +5,7 @@ import os
 import base64
 
 # Set up the Groq API key
-os.environ["GROQ_API_KEY"] = "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"
+os.environ["GROQ_API_KEY"] = "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"
 
 client = Groq()
 
@@ -36,10 +36,10 @@ def get_base64_encoded_image(image_path):
         return base64.b64encode(img_file.read()).decode()
 
 # Path to your icon images
-back_arrow_image_path = 'AL7.png'
+# back_arrow_image_path = 'AL7.png'
 
-# Encode the icon images
-encoded_back_arrow = get_base64_encoded_image(back_arrow_image_path)
+# # Encode the icon images
+# encoded_back_arrow = get_base64_encoded_image(back_arrow_image_path)
 
 
 # Convert your background image to base64
@@ -56,21 +56,33 @@ st.markdown(
         background-position: center;
     }}
     * {{
-        color: black !important; /* <-- Force all text to black */
+        color: black;
     }}
-    .back-arrow {{
-            position: absolute;
-            top: -440px;
-            left: -240px;
-            z-index: 1000;
-            border-radius: 50%; /* Round shape */
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Shadow effect */
-        }}
-        .back-arrow img {{
-            width: 55px; /* Width of the back arrow icon */
-            height: 55px; /* Height of the back arrow icon */
-        }}
-
+    input, textarea {{
+        background-color: #fff !important;
+        color: #222 !important;
+    }}
+    input::placeholder {{
+        color: #888 !important;
+    }}
+    select {{
+        background-color: #FFF9DB !important;  /* Pale yellow */
+        color: #222 !important;
+        border: 1px solid #ccc !important;
+    }}
+    option {{
+        background-color: #FFF9DB !important;  /* Pale yellow for dropdown options */
+        color: #222 !important;
+    }}
+    button[kind="primary"] {{
+        background-color: #22c55e !important;
+        color: #fff !important;
+        border: none !important;
+        font-weight: bold !important;
+    }}
+    button[kind="primary"]:hover {{
+        background-color: #16a34a !important;
+    }}
     </style>
     """,
     unsafe_allow_html=True
@@ -89,12 +101,3 @@ if st.button("Get Resources"):
         st.write(resources)
     else:
         st.write("Please enter a topic and select a level.")
-
-# Back arrow at the top left corner
-st.markdown(f'''
-    <div class="back-arrow">
-        <a href="https://kisangpt-6swjrp2hvbgx7l48gqoesh.streamlit.app/">
-            <img src="data:image/png;base64,{encoded_back_arrow}" alt="Back Arrow">
-        </a>
-    </div>
-''', unsafe_allow_html=True)

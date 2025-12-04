@@ -10,12 +10,15 @@ import base64
 
 # Set up the Groq API key
 # os.environ["GROQ_API_KEY"] = "api_key_needed_here"
+# client = Groq()
 
+from dotenv import load_dotenv
+load_dotenv()
+import os
 
+groq_api_key = os.getenv("GROQ_API_KEY")
+client = Groq(api_key=groq_api_key)
 
-
-
-client = Groq()
 
 def provide_resources(topic, level):
     messages = [

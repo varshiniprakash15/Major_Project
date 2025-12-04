@@ -78,71 +78,39 @@ def lemmatize_text(text):
     lemmatized_words = [lemmatizer.lemmatize(word, get_wordnet_pos(word)) for word in words]
     return ' '.join(lemmatized_words)
 
+
+# Set the background image
+import base64
+
+# Encode the background image
+def encode_image_to_base64(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode()
+
 # Set the background image
 def set_bg_image(image_path):
-    try:
-        with open(image_path, "rb") as image_file:
-            encoded_string = base64.b64encode(image_file.read()).decode()
-        st.markdown(
-            f"""
-<style>
-            .stApp {{
-                background: url("data:image/jpg;base64,{encoded_string}") no-repeat center center fixed;
-                background-size: cover;
-                color: black; /* Text color */
-            }}
-            
-            .stButton > button {{
-                background-color: #4CAF50; /* Green */
-                border: none;
-                font-family: 'Times-new roman';
-                color: white;
-                padding: 8px 14px;
-                text-align: center;
-                text-decoration: none;
-                display: inline-block;
-                font-size: 16px;
-                cursor: pointer;
-                border-radius: 8px;
-                width: 100px;
-                margin-top: -5px;
-            }}
-            .stButton > button:hover {{
-                background-color: green;
-                color:white;
-            }}
-            .custom-container {
-                position: fixed;
-                right: 30px;
-                bottom: 30px;
-                z-index: 1001;
-                display: flex;
-                flex-direction: column;
-                align-items: flex-end;
-                gap: 10px;
-            }
-            .corner-icon {{
-            position: absolute;
-            top: -30px;
-            left: -235px;
-            z-index: 1000;
-            height: 1px;
-            width: 50px;
+    encoded_string = encode_image_to_base64(image_path)
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background: url("data:image/jpg;base64,{encoded_string}") no-repeat center center fixed;
+            background-size: cover;
         }}
-</style>
-<div class="corner-icon">
-            <a href="https://kisangpt-6swjrp2hvbgx7l48gqoesh.streamlit.app/" target="_blank">
-                <img src="data:image/jpg;base64,{encoded_icon}" alt="KisanGPT" width="50" height="50"/>
-            </a>
-        </div>
-            """,
-            unsafe_allow_html=True
-        )
+        input, textarea, select {{
+            background-color: #fff !important;
+            color: #222 !important;
+        }}
+        input::placeholder {{
+            color: #888 !important;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
-    except FileNotFoundError:
-        st.write("Background image not found. Ensure 'image.jpg' exists.")
-    except Exception as e:
-        st.write(f"Error setting background image: {e}")
+# Call this at the top of your script (after imports)
+set_bg_image("farm_bg.jpg")
 
 # Encode the icon image
 def encode_image_to_base64(image_path):

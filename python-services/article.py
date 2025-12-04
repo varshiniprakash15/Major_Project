@@ -5,7 +5,7 @@ import os
 import base64
 
 # Set up the Groq API key
-os.environ["GROQ_API_KEY"] = "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"
+os.environ["GROQ_API_KEY"] = "api_key_needed_here"
 
 client = Groq()
 

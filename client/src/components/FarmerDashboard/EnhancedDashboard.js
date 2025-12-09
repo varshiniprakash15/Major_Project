@@ -1352,7 +1352,7 @@ const EnhancedDashboard = ({ onBackClick, currentUser, onLogout }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mb-6">
                 <button
                     className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-colors duration-200"
-                    onClick={() => window.open('http://localhost:8502/', '_blank')}
+                    onClick={() => window.open('http://localhost:8501/', '_blank')}
                 >
                     Articles & Resources
                 </button>
@@ -1367,7 +1367,7 @@ const EnhancedDashboard = ({ onBackClick, currentUser, onLogout }) => {
 <div className="w-full">
     <button
         className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-colors duration-200"
-        onClick={() => window.open('http://localhost:8504/', '_blank')}
+        onClick={() => window.open('http://localhost:8502/', '_blank')}
     >
         Chatbot
     </button>

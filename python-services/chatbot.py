@@ -15,9 +15,21 @@ nltk.download('punkt')
 nltk.download('averaged_perceptron_tagger')
 nltk.download('wordnet')
 
+
+
+
 # Set up the Groq API key
-os.environ["GROQ_API_KEY"] = "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"
-client = Groq()
+# os.environ["GROQ_API_KEY"] = "api_key_needed_here"
+# client = Groq()
+
+from dotenv import load_dotenv
+load_dotenv()
+import os
+
+groq_api_key = os.getenv("GROQ_API_KEY")
+client = Groq(api_key=groq_api_key)
+
+
 translator = Translate()
 
 lemmatizer = WordNetLemmatizer()
@@ -88,6 +100,14 @@ def encode_image_to_base64(image_path):
         return base64.b64encode(image_file.read()).decode()
 
 # Set the background image
+import base64
+
+# Encode the background image
+def encode_image_to_base64(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode()
+
+# Set the background image
 def set_bg_image(image_path):
     encoded_string = encode_image_to_base64(image_path)
     st.markdown(
@@ -111,6 +131,20 @@ def set_bg_image(image_path):
 
 # Call this at the top of your script (after imports)
 set_bg_image("farm_bg.jpg")
+st.markdown("""
+    <style>
+    .assistant-response {
+        background: rgba(30, 30, 30, 0.85); /* semi-transparent dark */
+        border-radius: 12px;
+        padding: 16px;
+        margin: 12px 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        color: #fff;
+        font-size: 1.1em;
+        font-family: inherit;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # Encode the icon image
 def encode_image_to_base64(image_path):
@@ -179,8 +213,10 @@ if 'messages' not in st.session_state:
 
 # Display chat history
 for message in st.session_state.messages:
-    st.chat_message(message["role"]).markdown(message["content"])
-
+    if message["role"] == "assistant":
+        st.markdown(f'<div class="assistant-response">{message["content"]}</div>', unsafe_allow_html=True)
+    else:
+        st.chat_message(message["role"]).markdown(message["content"])
 # Initialize input key
 if 'input_key' not in st.session_state:
     st.session_state.input_key = 0
@@ -208,7 +244,7 @@ if st.session_state.get("user_question_triggered", False) or st.button("Submit")
                 "You are a knowledgeable assistant well-versed in various aspects of sustainability and agriculture. "
                 "This includes topics like modern farming techniques, eco-friendly practices, climate change impacts, "
                 "crop management, soil health, irrigation methods, sustainable energy solutions, organic farming, and more. "
-                "Respond to user questions with detailed information, examples, and practical advice where applicable. "
+                "Respond to user questions in 80 to 140 words, if possible including examples and practical advice where applicable. "
                 "Here is the user's question: "
                 f"{user_question_translated}"
             )
@@ -235,7 +271,7 @@ if st.session_state.get("user_question_triggered", False) or st.button("Submit")
                         response_chunks.append(content)
 
             final_response = "".join(response_chunks)
-            st.chat_message("assistant").markdown(final_response)
+            st.markdown(f'<div class="assistant-response">{final_response}</div>', unsafe_allow_html=True)
             st.session_state.messages.append({"role": "assistant", "content": final_response})
 
         except Exception as e:

@@ -1,5 +1,4 @@
 # AgroLink - AI-Powered Agricultural Platform
-
 ## 🌾 Overview
 
 AgroLink is a comprehensive Artificial General Intelligence (AGI) based agricultural platform that connects farmers, laborers, and service providers in the agricultural ecosystem. The platform leverages modern web technologies, AI-powered filtering, and real-time communication to enhance agricultural productivity and sustainability.

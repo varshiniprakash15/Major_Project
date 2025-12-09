@@ -4,10 +4,21 @@ from groq import Groq
 import os
 import base64
 
-# Set up the Groq API key
-os.environ["GROQ_API_KEY"] = "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"
 
-client = Groq()
+
+
+
+# Set up the Groq API key
+# os.environ["GROQ_API_KEY"] = "api_key_needed_here"
+# client = Groq()
+
+from dotenv import load_dotenv
+load_dotenv()
+import os
+
+groq_api_key = os.getenv("GROQ_API_KEY")
+client = Groq(api_key=groq_api_key)
+
 
 def provide_resources(topic, level):
     messages = [
@@ -17,7 +28,7 @@ def provide_resources(topic, level):
         },
         {
             "role": "user",
-            "content": f"Provide articles and links for the topic: {topic} suitable for a {level} level learner."
+            "content": f"Provide articles and links for the topic: {topic} suitable for a {level} level learner, please ensure atleast one relevant link is provided"
         }
     ]
     response = client.chat.completions.create(
@@ -36,10 +47,10 @@ def get_base64_encoded_image(image_path):
         return base64.b64encode(img_file.read()).decode()
 
 # Path to your icon images
-back_arrow_image_path = 'AL7.png'
+# back_arrow_image_path = 'AL7.png'
 
-# Encode the icon images
-encoded_back_arrow = get_base64_encoded_image(back_arrow_image_path)
+# # Encode the icon images
+# encoded_back_arrow = get_base64_encoded_image(back_arrow_image_path)
 
 
 # Convert your background image to base64
@@ -55,9 +66,7 @@ st.markdown(
         background-size: cover;
         background-position: center;
     }}
-    * {{
-        color: black;
-    }}
+    
     input, textarea {{
         background-color: #fff !important;
         color: #222 !important;
@@ -87,6 +96,21 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+st.markdown("""
+    <style>
+    .agent-response {
+        background: rgba(30, 30, 30, 0.85); /* semi-transparent dark */
+        border-radius: 12px;
+        padding: 16px;
+        margin: 12px 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        color: #fff;
+        font-size: 1.1em;
+        font-family: inherit;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 
 st.title("Learning Resources Finder")
 
@@ -98,6 +122,6 @@ level = st.selectbox("Select your level:", ["beginner", "intermediate", "advance
 if st.button("Get Resources"):
     if topic_resources and level:
         resources = provide_resources(topic_resources, level)
-        st.write(resources)
+        st.markdown(f'<div class="agent-response">{resources}</div>', unsafe_allow_html=True)
     else:
         st.write("Please enter a topic and select a level.")

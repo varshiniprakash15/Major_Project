@@ -3,6 +3,8 @@ import streamlit as st
 from groq import Groq
 import os
 from translatepy import Translate
+from gtts import gTTS
+import io
 import base64
 import speech_recognition as sr
 import nltk
@@ -69,6 +71,23 @@ def recognize_speech(language_code):
         except sr.RequestError as e:
             st.write(f"Could not request results from Google Speech Recognition service; {e}")
             return None
+
+# Function to convert text to speech and return audio data
+def text_to_speech(text, lang_code):
+    try:
+        # Handle special case for 'ur' if gTTS does not support it directly
+        if lang_code == 'ur':
+            # Using a different engine or a workaround might be needed if gTTS fails
+            pass
+        
+        tts = gTTS(text=text, lang=lang_code, slow=False)
+        audio_fp = io.BytesIO()
+        tts.write_to_fp(audio_fp)
+        audio_fp.seek(0)
+        return audio_fp
+    except Exception as e:
+        st.write(f"TTS Error: {e}")
+        return None
 
 # Translate text using Translatepy
 def translate_text(text, target_language):
@@ -143,6 +162,30 @@ st.markdown("""
         font-size: 1.1em;
         font-family: inherit;
     }
+/* Main container for chat messages */
+    .chat-container {
+        /* Adjust padding to prevent content from being hidden by the fixed input area */
+        padding-bottom: 15rem; 
+    }
+
+    /* Fixed container for all input controls at the bottom */
+    .input-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        padding: 1rem 1rem 2rem 1rem; /* Add padding for spacing */
+        background: rgba(255, 255, 255, 0.1); /* Semi-transparent background for a modern look */
+        backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        z-index: 100;
+    }
+
+    /* Styling for buttons to ensure they are vertically aligned with the text input */
+    .stButton>button {
+        height: 3.1rem; /* Match height of text input */
+        width: 100%;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -166,7 +209,6 @@ if st.button("🎤 Speak"):
         st.session_state.messages.append({"role": "user", "content": user_question})
         try:
             response_chunks = []
-            response = ""
             prompt = (
                 "You are a knowledgeable assistant well-versed in various aspects of sustainability and agriculture. "
                 "This includes topics like modern farming techniques, eco-friendly practices, climate change impacts, "
@@ -190,22 +232,35 @@ if st.button("🎤 Speak"):
                 stream=True,
             )
             for chunk in stream:
-                if hasattr(chunk.choices[0].delta, "content"):
-                    content = chunk.choices[0].delta.content
-                    if content is not None:
-                        response_chunks.append(content)
+                content = chunk.choices[0].delta.content
+                if content:
+                    response_chunks.append(content)
+
             final_response = "".join(response_chunks)
-            st.session_state.messages.append({"role": "assistant", "content": final_response})
+
+            # Translate the response if the selected language is not English
+            if selected_language != 'English':
+                final_response_translated = translate_text(final_response, language_code)
+            else:
+                final_response_translated = final_response
+
+            st.session_state.messages.append({"role": "assistant", "content": final_response_translated})
+
+            # Generate and play audio response
+            if final_response_translated:
+                audio_file = text_to_speech(final_response_translated, language_code)
+                if audio_file:
+                    st.session_state["latest_audio"] = audio_file
+
         except Exception as e:
             st.write(f"Error: {e}")
         st.session_state.input_key += 1
         st.session_state.user_question = ""
         st.session_state.user_question_triggered = False
-    else:
-        st.write("Sorry, could not recognize your speech.")
-        st.session_state["user_question"] = ""
+        st.rerun()
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 # Initialize chat history
 if 'messages' not in st.session_state:
@@ -217,6 +272,12 @@ for message in st.session_state.messages:
         st.markdown(f'<div class="assistant-response">{message["content"]}</div>', unsafe_allow_html=True)
     else:
         st.chat_message(message["role"]).markdown(message["content"])
+
+# Play the latest audio response if available
+if "latest_audio" in st.session_state:
+    st.audio(st.session_state["latest_audio"], format='audio/mp3', autoplay=True)
+    del st.session_state["latest_audio"]  # Clean up after playing
+
 # Initialize input key
 if 'input_key' not in st.session_state:
     st.session_state.input_key = 0
@@ -237,8 +298,7 @@ if st.session_state.get("user_question_triggered", False) or st.button("Submit")
         st.session_state.messages.append({"role": "user", "content": user_question})
         try:
             response_chunks = []
-            response = ""
-
+            
             # Updated prompt to broaden the scope
             prompt = (
                 "You are a knowledgeable assistant well-versed in various aspects of sustainability and agriculture. "
@@ -265,17 +325,29 @@ if st.session_state.get("user_question_triggered", False) or st.button("Submit")
             )
 
             for chunk in stream:
-                if hasattr(chunk.choices[0].delta, "content"):
-                    content = chunk.choices[0].delta.content
-                    if content is not None:
-                        response_chunks.append(content)
+                content = chunk.choices[0].delta.content
+                if content:
+                    response_chunks.append(content)
 
             final_response = "".join(response_chunks)
-            st.markdown(f'<div class="assistant-response">{final_response}</div>', unsafe_allow_html=True)
-            st.session_state.messages.append({"role": "assistant", "content": final_response})
+
+            # Translate the response if the selected language is not English
+            if selected_language != 'English':
+                final_response_translated = translate_text(final_response, language_code)
+            else:
+                final_response_translated = final_response
+
+            st.session_state.messages.append({"role": "assistant", "content": final_response_translated})
+
+            # Generate and play audio response
+            if final_response_translated:
+                audio_file = text_to_speech(final_response_translated, language_code)
+                if audio_file:
+                    st.session_state["latest_audio"] = audio_file
 
         except Exception as e:
             st.write(f"Error: {e}")
         st.session_state.input_key += 1
         st.session_state.user_question = ""
         st.session_state.user_question_triggered = False
+        st.rerun()

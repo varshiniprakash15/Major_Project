@@ -331,3 +331,7 @@ For support and questions:
 ---
 
 **AgroLink** - Empowering Agriculture Through Technology 🌱
+
+to implement the text to speddch told by sumalatha mam:-
+
+pip install gTTS

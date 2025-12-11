@@ -109,6 +109,15 @@ def lemmatize_text(text):
     lemmatized_words = [lemmatizer.lemmatize(word, get_wordnet_pos(word)) for word in words]
     return ' '.join(lemmatized_words)
 
+
+# Set the background image
+import base64
+
+# Encode the background image
+def encode_image_to_base64(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode()
+
 # Set the background image
 import base64
 
